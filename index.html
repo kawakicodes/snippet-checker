@@ -1,0 +1,380 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Snippet Checker</title>
+<meta name="description" content="Check page titles and meta descriptions the way Google shows them: pixel widths, cut-offs, duplicates and missing tags, with a live preview. Runs in your browser.">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%231f6feb'/%3E%3Cpath d='M8 11h16M8 16h12M8 21h9' stroke='white' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
+<style>
+:root{
+  --bg:#f5f7fa;--card:#fff;--ink:#17202b;--mute:#5d6b7a;--line:#dde3ea;--accent:#1f6feb;--accent-ink:#fff;
+  --pass:#1a7f4b;--warn:#a35d00;--fail:#c42b2b;--passbg:#e5f4ec;--warnbg:#fdf0db;--failbg:#fde7e7;--infobg:#ebeff5;
+  --serp-title:#1a0dab;--serp-url:#4d5156;--serp-text:#4d5156;--meter:#e6ebf1;
+}
+@media (prefers-color-scheme:dark){:root{
+  --bg:#0f1318;--card:#171c23;--ink:#e6ebf1;--mute:#97a3b1;--line:#29313b;--accent:#6ea8fe;--accent-ink:#0f1318;
+  --pass:#5fd39a;--warn:#f0b257;--fail:#ff8a8a;--passbg:#12301f;--warnbg:#382810;--failbg:#3a1717;--infobg:#222a35;
+  --serp-title:#99c3ff;--serp-url:#bdc1c6;--serp-text:#bdc1c6;--meter:#252d38;color-scheme:dark}}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font:15px/1.5 -apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,sans-serif}
+main{max-width:1120px;margin:0 auto;padding:28px 16px 64px;display:flex;flex-direction:column;gap:18px}
+h1{font-size:24px;margin:0}h2{font-size:16px;margin:0}
+.sub{color:var(--mute);margin:4px 0 0;max-width:70ch}
+.card{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:18px}
+.row{display:flex;gap:12px;flex-wrap:wrap;align-items:flex-end}
+.row>.f{flex:1;min-width:170px}
+label{display:block;font-size:12px;color:var(--mute);margin-bottom:4px}
+input[type=text],input[type=number],select,textarea{width:100%;background:var(--bg);color:var(--ink);border:1px solid var(--line);border-radius:8px;padding:9px 10px;font:inherit}
+textarea{min-height:96px;resize:vertical;font:13px/1.45 ui-monospace,Menlo,monospace}
+button{font:inherit;font-weight:600;border-radius:8px;padding:9px 14px;cursor:pointer;border:1px solid transparent;background:var(--accent);color:var(--accent-ink)}
+button.ghost{background:transparent;color:var(--ink);border-color:var(--line);font-weight:500}
+button:disabled{opacity:.5;cursor:default}
+:focus-visible{outline:2px solid var(--accent);outline-offset:2px}
+.drop{border:2px dashed var(--line);border-radius:12px;padding:22px;text-align:center;color:var(--mute);cursor:pointer}
+.drop.over{border-color:var(--accent);color:var(--ink)}
+.drop b{color:var(--ink)}
+.or{display:flex;align-items:center;gap:10px;color:var(--mute);font-size:12px;margin:14px 0}
+.or::before,.or::after{content:"";flex:1;border-top:1px solid var(--line)}
+.tiles{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:12px}
+.tile{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:14px}
+.tile b{display:block;font-size:26px;line-height:1.15;font-variant-numeric:tabular-nums}
+.tile span{color:var(--mute);font-size:12px}
+.counts{display:flex;flex-wrap:wrap;gap:8px 18px;font-size:13px;color:var(--mute)}
+.counts b{color:var(--ink);font-variant-numeric:tabular-nums}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;align-items:center}
+.toolbar .grow{flex:1;min-width:180px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden}
+.seg button{border:0;border-radius:0;background:transparent;color:var(--ink);font-weight:500;padding:8px 12px}
+.seg button[aria-pressed=true]{background:var(--accent);color:var(--accent-ink)}
+.results{display:flex;flex-direction:column;gap:12px}
+.res{background:var(--card);border:1px solid var(--line);border-left:4px solid var(--line);border-radius:10px;padding:14px 16px;display:grid;grid-template-columns:minmax(0,1fr) 230px;gap:14px}
+.res.fail{border-left-color:var(--fail)}.res.warn{border-left-color:var(--warn)}.res.pass{border-left-color:var(--pass)}
+@media (max-width:760px){.res{grid-template-columns:minmax(0,1fr)}}
+.serp{font-family:Arial,sans-serif;min-width:0}
+.serp .u{font-size:12px;color:var(--serp-url);overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.serp .t{font-size:20px;line-height:1.3;color:var(--serp-title);margin:2px 0;overflow-wrap:anywhere}
+.serp .d{font-size:14px;line-height:1.58;color:var(--serp-text);overflow-wrap:anywhere}
+.serp .empty{color:var(--fail);font-style:italic}
+.side{display:flex;flex-direction:column;gap:8px;font-size:12px;color:var(--mute)}
+.meter{height:6px;border-radius:3px;background:var(--meter);overflow:hidden}
+.meter i{display:block;height:100%;background:var(--pass)}
+.meter.warn i{background:var(--warn)}.meter.fail i{background:var(--fail)}
+.score{font-size:13px;color:var(--ink)}
+.score b{font-size:18px}
+ul.issues{list-style:none;margin:10px 0 0;padding:0;display:flex;flex-direction:column;gap:5px;grid-column:1/-1}
+ul.issues li{font-size:13px;display:flex;gap:8px;align-items:flex-start}
+.pill{flex:none;display:inline-block;min-width:44px;text-align:center;border-radius:99px;padding:1px 8px;font-size:11px;font-weight:700;text-transform:uppercase;letter-spacing:.03em}
+.pill.fail{color:var(--fail);background:var(--failbg)}.pill.warn{color:var(--warn);background:var(--warnbg)}
+.pill.info{color:var(--mute);background:var(--infobg)}.pill.pass{color:var(--pass);background:var(--passbg)}
+.muted{color:var(--mute)}.small{font-size:12px}
+.status{font-size:13px;color:var(--mute);min-height:1.5em}
+.status.err{color:var(--fail)}
+.more{align-self:center}
+footer{color:var(--mute);font-size:12px}
+footer a{color:var(--accent)}
+</style>
+<script src="vendor/xlsx.full.min.js" defer></script>
+<script src="widths.js"></script>
+<script src="checker.js"></script>
+</head>
+<body>
+<main>
+  <header>
+    <h1>Snippet Checker</h1>
+    <p class="sub">See how your page titles and meta descriptions will look in Google, before you publish them. It measures each title in pixels, as it would appear in Google's desktop results, then flags anything likely to be cut off, missing, duplicated or off-brand. Your data never leaves your browser.</p>
+  </header>
+
+  <section class="card" aria-labelledby="in-h">
+    <h2 id="in-h" style="margin-bottom:12px">1. Add your titles and descriptions</h2>
+    <div class="drop" id="drop" tabindex="0" role="button" aria-describedby="drop-hint">
+      <b>Drop a spreadsheet here</b> or click to choose one
+      <div class="small" id="drop-hint">Excel (.xlsx), CSV or tab-separated. Needs a header row, e.g. URL · Keyword · Title · Description</div>
+      <input type="file" id="file" accept=".csv,.tsv,.txt,.xlsx,.xls" hidden>
+    </div>
+    <div class="or">or paste cells copied from Excel or Google Sheets</div>
+    <label for="paste">Paste here (include the header row)</label>
+    <textarea id="paste" placeholder="URL&#9;Keyword&#9;Title&#9;Description"></textarea>
+    <div class="row" style="margin-top:10px">
+      <button id="usePaste" class="ghost">Check pasted cells</button>
+      <button id="sample" class="ghost">Try an example</button>
+    </div>
+    <p class="status" id="status" role="status"></p>
+  </section>
+
+  <section class="card" id="setup" hidden aria-labelledby="set-h">
+    <h2 id="set-h" style="margin-bottom:12px">2. Check the columns and your targets</h2>
+    <div class="row">
+      <div class="f" id="sheetBox" hidden><label for="sheet">Sheet</label><select id="sheet"></select></div>
+      <div class="f"><label for="cUrl">URL column</label><select id="cUrl"></select></div>
+      <div class="f"><label for="cKw">Main keyword column</label><select id="cKw"></select></div>
+      <div class="f"><label for="cTitle">Title column</label><select id="cTitle"></select></div>
+      <div class="f"><label for="cDesc">Description column</label><select id="cDesc"></select></div>
+    </div>
+    <div class="row" style="margin-top:12px">
+      <div class="f"><label for="brand">Brand name (optional)</label><input type="text" id="brand" placeholder="e.g. Acme Legal"></div>
+      <div class="f"><label for="tMax">Title target, max characters</label><input type="number" id="tMax" min="20" max="120" value="60"></div>
+      <div class="f"><label for="dMax">Description target, max characters</label><input type="number" id="dMax" min="50" max="400" value="160"></div>
+      <div><button id="run">Check</button></div>
+    </div>
+  </section>
+
+  <section id="out" hidden aria-labelledby="res-h">
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <h2 id="res-h">3. Results</h2>
+      <div class="tiles">
+        <div class="tile"><b id="sRows">0</b><span>Pages checked</span></div>
+        <div class="tile"><b id="sScore">0</b><span>Average score out of 100</span></div>
+        <div class="tile"><b id="sFail">0</b><span>Pages failing</span></div>
+        <div class="tile"><b id="sWarn">0</b><span>Pages to improve</span></div>
+        <div class="tile"><b id="sPass">0</b><span>Pages fine</span></div>
+      </div>
+      <div class="counts" id="counts"></div>
+      <p class="small muted" id="notes" hidden></p>
+      <div class="toolbar">
+        <div class="seg" role="group" aria-label="Show">
+          <button data-f="all" aria-pressed="true">All</button>
+          <button data-f="fail" aria-pressed="false">Failing</button>
+          <button data-f="warn" aria-pressed="false">To improve</button>
+          <button data-f="pass" aria-pressed="false">Fine</button>
+        </div>
+        <input class="grow" type="text" id="search" placeholder="Search URL, title or description" aria-label="Search results">
+        <button class="ghost" id="export">Download report (CSV)</button>
+      </div>
+      <p class="small muted" id="shown"></p>
+      <div class="results" id="list"></div>
+      <button class="ghost more" id="more" hidden>Show more</button>
+    </div>
+  </section>
+
+  <footer>
+    Title widths are measured with Arial at 20px, the size Google uses for desktop result titles. Google publishes no length limit and shortens text "as needed, typically to fit the device width"; about 600px of a title is the common estimate, and descriptions are judged against your character target. Estimates, not guarantees.
+    · <a href="https://github.com/kawakicodes/snippet-checker">Source on GitHub</a>
+  </footer>
+</main>
+
+<script>
+(function () {
+  'use strict';
+  var C = window.SnippetChecker;
+  var $ = function (id) { return document.getElementById(id); };
+  var state = { book: null, table: null, header: [], result: null, filter: 'all', shown: 0, firstRow: 2, demoBrand: false };
+  var PAGE = 60;
+
+  var SAMPLE = [
+    ['URL', 'Main keyword', 'Title', 'Description'],
+    ['https://acme-legal.example/', 'law firm mumbai', 'Acme Legal – Law Firm in Mumbai for Business & Family Law', 'Acme Legal is a Mumbai law firm advising businesses and families on contracts, property, divorce and disputes. Book a consultation with our lawyers.'],
+    ['https://acme-legal.example/divorce', 'divorce lawyer mumbai', 'Divorce Lawyer in Mumbai – Mutual & Contested Divorce | Acme Legal', 'Our divorce lawyers in Mumbai handle mutual consent and contested divorce, child custody and maintenance. Clear fees, practical advice.'],
+    ['https://acme-legal.example/property', 'property lawyer mumbai', 'Property Lawyer Mumbai | Acme Legal', 'Acme Legal helps buyers and owners in Mumbai with property title checks, registration, disputes and RERA complaints. Speak to a property lawyer.'],
+    ['https://acme-legal.example/about', '', 'About Us', ''],
+    ['https://acme-legal.example/contact', '', 'Contact Us | Acme Legal', 'Acme Legal is a Mumbai law firm advising businesses and families on contracts, property, divorce and disputes. Book a consultation with our lawyers.'],
+    ['https://acme-legal.example/blog/rera-guide', 'rera complaint', 'The BEST Complete Guide To Filing A RERA Complaint Against Your Builder In Maharashtra In 2026', 'How to file a RERA complaint in Maharashtra: documents, fees, timelines and what happens at the hearing.'],
+    ['https://acme-legal.example/corporate', 'corporate lawyer', 'Corporate Law Services | Acme Legal', 'Corporate law services.']
+  ];
+
+  function status(msg, err) { var s = $('status'); s.textContent = msg; s.className = 'status' + (err ? ' err' : ''); }
+  function clearResults() { state.result = null; $('out').hidden = true; $('list').replaceChildren(); }
+  function el(tag, cls, text) { var n = document.createElement(tag); if (cls) n.className = cls; if (text !== undefined) n.textContent = text; return n; }
+
+  function loadTable(table, source, firstRow, isDemo, note) {
+    clearResults();
+    if (state.demoBrand && !isDemo) { $('brand').value = ''; state.demoBrand = false; }   // the example's brand is not yours
+    if (!table.length) { $('setup').hidden = true; return status('That file has no rows.', true); }
+    var headerOk = C.looksLikeHeader(table[0]);
+    state.table = table;
+    state.firstRow = typeof firstRow === 'number' ? firstRow : 2 + (table.skipped || 0);
+    state.header = table[0].map(function (h, i) { return String(h || '').trim() || 'Column ' + (i + 1); });
+    var g = C.guessColumns(state.header);
+    [['cUrl', 'url'], ['cKw', 'keyword'], ['cTitle', 'title'], ['cDesc', 'description']].forEach(function (p) {
+      var sel = $(p[0]);
+      sel.replaceChildren(new Option('(none)', '-1'));
+      state.header.forEach(function (h, i) { sel.append(new Option(h, String(i))); });
+      sel.value = String(g.columns[p[1]]);
+    });
+    $('setup').hidden = false;
+    var n = table.slice(1).filter(function (r) { return r.length; }).length;
+    if (!n) return status('The file has a header row but no pages under it.', true);
+    if (g.columns.title < 0 && g.columns.description < 0) {
+      return status('Loaded ' + n + (n === 1 ? ' row' : ' rows') + ' from ' + source + (headerOk ? '' : ". The first row doesn't look like column names") +
+        '. Choose the Title and Description columns below, then press Check.', true);
+    }
+    status('Loaded ' + n + (n === 1 ? ' row' : ' rows') + ' from ' + source + '.' + (note ? ' ' + note : ''));
+    run();
+  }
+
+  function readFile(file) {
+    if (!file) return;
+    status('Reading ' + file.name + '…');
+    if (/\.xlsx?$/i.test(file.name)) {
+      if (!window.XLSX) return status('Excel support could not load (are you offline?). Save the sheet as CSV and try again.', true);
+      var fr = new FileReader();
+      fr.onload = function () {
+        try {
+          state.book = XLSX.read(new Uint8Array(fr.result), { type: 'array' });
+          var sel = $('sheet');
+          sel.replaceChildren();
+          state.book.SheetNames.forEach(function (n) { sel.append(new Option(n, n)); });
+          $('sheetBox').hidden = state.book.SheetNames.length < 2;
+          var best = state.book.SheetNames.find(function (n) { return /meta|title|snippet/i.test(n); }) || state.book.SheetNames[0];
+          sel.value = best;
+          loadSheet(best, file.name);
+        } catch (e) { status('Could not read that Excel file. Try saving it as CSV.', true); }
+      };
+      fr.onerror = function () { status('Could not read that file.', true); };
+      fr.readAsArrayBuffer(file);
+    } else {
+      state.book = null; $('sheetBox').hidden = true;
+      var tr = new FileReader(), tried1252 = false;
+      tr.onload = function () {
+        if (!tried1252 && tr.result.indexOf('\uFFFD') >= 0) { tried1252 = true; return tr.readAsText(file, 'windows-1252'); }
+        loadTable(C.parseDelimited(tr.result), file.name, undefined, false,
+          tried1252 ? 'It was not saved as UTF-8, so it was read as Windows-1252; if letters look wrong, save it as "CSV UTF-8".' : '');
+      };
+      tr.onerror = function () { status('Could not read that file.', true); };
+      tr.readAsText(file);
+    }
+  }
+  function loadSheet(name, source) {
+    var ws = state.book.Sheets[name];
+    if (!ws || !ws['!ref']) { clearResults(); return status('The sheet "' + name + '" is empty.', true); }
+    var startRow = XLSX.utils.decode_range(ws['!ref']).s.r;          // rows above the used range
+    var table = C.parseDelimited(XLSX.utils.sheet_to_csv(ws, { blankrows: true }));
+    loadTable(table, source + ' › ' + name, 2 + startRow + (table.skipped || 0));
+  }
+
+  function run() {
+    if (!state.table) return;
+    var cols = { url: +$('cUrl').value, keyword: +$('cKw').value, title: +$('cTitle').value, description: +$('cDesc').value };
+    if (cols.title < 0 && cols.description < 0) return status('Choose at least a Title or a Description column.', true);
+    var rows = C.toRows(state.table.slice(1), cols, state.firstRow);
+    if (!rows.length) { clearResults(); return status('No rows with a title, description or URL were found.', true); }
+    var tMax = Math.max(20, Math.min(120, parseInt($('tMax').value, 10) || 60));
+    var dMax = Math.max(50, Math.min(400, parseInt($('dMax').value, 10) || 160));
+    $('tMax').value = tMax; $('dMax').value = dMax;
+    if (!state.demoBrand) { try { localStorage.setItem('snippet-brand', $('brand').value); } catch (e) {} }
+    var before = $('status').textContent;
+    status('Checking ' + rows.length + ' pages…');
+    $('run').disabled = true;
+    setTimeout(function () {
+      state.result = C.check(rows, { brand: $('brand').value, titleMaxChars: tMax, descMaxChars: dMax });
+      $('run').disabled = false;
+      status(before);
+      summary();
+      state.shown = 0;
+      renderList(true);
+      $('out').hidden = false;
+    }, 30);
+  }
+
+  function summary() {
+    var s = state.result.summary;
+    $('sRows').textContent = s.rows; $('sScore').textContent = s.averageScore;
+    $('sFail').textContent = s.fail; $('sWarn').textContent = s.warn; $('sPass').textContent = s.pass;
+    var items = [['Titles likely cut off', s.titlesCut], ['Descriptions over target', s.descsOver], ['Missing titles', s.missingTitles],
+                 ['Missing descriptions', s.missingDescs], ['Duplicate titles', s.duplicateTitles], ['Duplicate descriptions', s.duplicateDescs]];
+    var box = $('counts'); box.replaceChildren();
+    items.forEach(function (it) { var sp = el('span'); sp.append(it[0] + ': '); sp.append(el('b', '', String(it[1]))); box.append(sp); });
+    $('notes').hidden = !state.result.notes.length;
+    $('notes').textContent = state.result.notes.join(' ');
+  }
+
+  function visibleRows() {
+    var q = $('search').value.trim().toLowerCase();
+    return state.result.rows.map(function (r, i) { return { r: r, i: i }; }).filter(function (x) {
+      if (state.filter !== 'all' && x.r.status !== state.filter) return false;
+      return !q || (x.r.url + ' ' + x.r.title + ' ' + x.r.description).toLowerCase().indexOf(q) >= 0;
+    }).sort(function (a, b) { return a.r.score - b.r.score || a.r.row - b.r.row; });
+  }
+
+  function meter(label, text, used, max, issueLevel, what) {
+    var wrap = el('div');
+    wrap.append(el('div', '', label + ': ' + text));
+    var m = el('div', 'meter' + (issueLevel ? ' ' + issueLevel : ''));
+    var pct = Math.min(100, Math.round(used / max * 100));
+    var bar = el('i'); bar.style.width = pct + '%';
+    m.append(bar); m.setAttribute('role', 'img'); m.setAttribute('aria-label', label + ' uses ' + Math.round(used / max * 100) + '% of ' + what);
+    wrap.append(m);
+    return wrap;
+  }
+
+  function card(x) {
+    var r = x.r, o = state.result.options;
+    var c = el('article', 'res ' + r.status);
+    var serp = el('div', 'serp');
+    serp.append(el('div', 'u', r.url || '(no URL)'));
+    serp.append(r.title.trim() ? el('div', 't', r.titlePreview.text) : el('div', 't empty', 'No title'));
+    serp.append(r.description.trim() ? el('div', 'd', r.descPreview.text) : el('div', 'd empty', 'No description'));
+    var side = el('div', 'side');
+    var sc = el('div', 'score'); sc.append('Score '); sc.append(el('b', '', String(r.score))); sc.append(' / 100 · row ' + r.row);
+    side.append(sc);
+    var tl = r.issues.some(function (i) { return i.code === 'title-cut'; }) ? 'fail' : (r.titleChars > o.titleMaxChars ? 'warn' : '');
+    var dl = r.descChars > o.descMaxChars ? 'warn' : '';
+    side.append(meter('Title', r.titleChars + ' characters · ' + r.titlePx + 'px', r.titlePx, o.titleMaxPx, tl, 'the width Google usually shows'));
+    side.append(meter('Description', r.descChars + ' of ' + o.descMaxChars + ' characters', r.descChars, o.descMaxChars, dl, 'your character target'));
+    c.append(serp, side);
+    var ul = el('ul', 'issues');
+    var order = { fail: 0, warn: 1, info: 2 };
+    r.issues.slice().sort(function (a, b) { return order[a.level] - order[b.level]; }).forEach(function (i) {
+      var li = el('li'); li.append(el('span', 'pill ' + i.level, i.level === 'warn' ? 'fix' : i.level === 'info' ? 'note' : 'fail'));
+      li.append(el('span', '', (i.field === 'title' ? 'Title: ' : 'Description: ') + i.msg)); ul.append(li);
+    });
+    if (!r.issues.length) { var li = el('li'); li.append(el('span', 'pill pass', 'ok')); li.append(el('span', '', 'Nothing to fix.')); ul.append(li); }
+    c.append(ul);
+    return c;
+  }
+
+  function renderList(reset) {
+    var rows = visibleRows(), list = $('list');
+    if (reset) { list.replaceChildren(); state.shown = 0; }
+    var next = rows.slice(state.shown, state.shown + PAGE);
+    next.forEach(function (x) { list.append(card(x)); });
+    state.shown += next.length;
+    $('more').hidden = state.shown >= rows.length;
+    $('shown').textContent = rows.length ? 'Showing ' + state.shown + ' of ' + rows.length + ', lowest scores first.' : 'No pages match.';
+  }
+
+  // ----- wiring
+  var drop = $('drop');
+  drop.addEventListener('click', function () { $('file').click(); });
+  drop.addEventListener('keydown', function (e) { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); $('file').click(); } });
+  $('file').addEventListener('change', function (e) { readFile(e.target.files[0]); e.target.value = ''; });
+  ['dragenter', 'dragover'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.add('over'); }); });
+  ['dragleave', 'drop'].forEach(function (t) { drop.addEventListener(t, function (e) { e.preventDefault(); drop.classList.remove('over'); }); });
+  drop.addEventListener('drop', function (e) { if (e.dataTransfer.files.length) readFile(e.dataTransfer.files[0]); });
+  $('usePaste').addEventListener('click', function () {
+    var t = $('paste').value;
+    if (!t.trim()) return status('Paste some cells first, including the header row.', true);
+    state.book = null; $('sheetBox').hidden = true;
+    loadTable(C.parseDelimited(t), 'pasted cells');
+  });
+  $('sample').addEventListener('click', function () {
+    state.book = null; $('sheetBox').hidden = true;
+    $('brand').value = 'Acme Legal';
+    state.demoBrand = true;
+    loadTable(SAMPLE.map(function (r) { return r.slice(); }), 'the example (a made-up law firm)', 2, true);
+  });
+  $('sheet').addEventListener('change', function () { if (state.book) loadSheet($('sheet').value, 'workbook'); });
+  ['cUrl', 'cKw', 'cTitle', 'cDesc'].forEach(function (id) { $(id).addEventListener('change', run); });
+  $('run').addEventListener('click', run);
+  $('brand').addEventListener('keydown', function (e) { if (e.key === 'Enter') run(); });
+  $('brand').addEventListener('input', function () { state.demoBrand = false; });
+  $('more').addEventListener('click', function () { renderList(false); });
+  $('search').addEventListener('input', function () { renderList(true); });
+  Array.prototype.forEach.call(document.querySelectorAll('.seg button'), function (b) {
+    b.addEventListener('click', function () {
+      state.filter = b.dataset.f;
+      Array.prototype.forEach.call(document.querySelectorAll('.seg button'), function (x) { x.setAttribute('aria-pressed', String(x === b)); });
+      renderList(true);
+    });
+  });
+  $('export').addEventListener('click', function () {
+    if (!state.result) return;
+    var a = el('a'); a.href = URL.createObjectURL(new Blob([C.toCsv(state.result)], { type: 'text/csv' }));
+    a.download = 'snippet-report.csv'; document.body.append(a); a.click(); a.remove();
+  });
+  try { $('brand').value = localStorage.getItem('snippet-brand') || ''; } catch (e) {}
+  if (location.hash === '#demo') $('sample').click();   // link straight to a filled-in example
+})();
+</script>
+</body>
+</html>
