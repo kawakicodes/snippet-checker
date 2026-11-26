@@ -2,7 +2,7 @@
 
 **See how your page titles and meta descriptions will look in Google, before you publish them.**
 
-**[Try it in your browser →](https://kawakicodes.github.io/snippet-checker/#demo)** (nothing to install; your data never leaves your browser)
+**[Try it in your browser →](https://kunal-martech.github.io/snippet-checker/#demo)** (nothing to install; your data never leaves your browser)
 
 ![Snippet Checker results: Google-style previews of each page with a score, width meters and a list of what to fix](docs/results.png)
 
@@ -42,7 +42,7 @@ Google publishes no fixed length for titles or descriptions: it shortens them "a
 
 ## Use it
 
-**In the browser:** open the [live page](https://kawakicodes.github.io/snippet-checker/), or open `index.html` from this folder.
+**In the browser:** open the [live page](https://kunal-martech.github.io/snippet-checker/), or open `index.html` from this folder.
 
 **From the command line** (needs [Node.js](https://nodejs.org)):
 
